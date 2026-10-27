@@ -40,6 +40,8 @@ def main():
     ap.add_argument("--train-end", default="2026-06-15")
     ap.add_argument("--timesteps", type=int, default=200_000)
     ap.add_argument("--out", default="models/ppo_trader.zip")
+    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--no-tensorboard", action="store_true")
     args = ap.parse_args()
 
     train_df, _, tickers = load_split(args.data, args.train_end)
@@ -54,7 +56,8 @@ def main():
         batch_size=256,
         gamma=0.99,
         learning_rate=3e-4,
-        tensorboard_log="./tb_logs/",
+        tensorboard_log=None if args.no_tensorboard else "./tb_logs/",
+        seed=args.seed,
     )
 
     # --- DDPG alternative (swap in if you want an off-policy comparison) ---

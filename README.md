@@ -39,15 +39,22 @@ Built for **FinSearch 2026**, the research project run by the Finance Club, IIT 
 - **It did not beat buy-and-hold on return or Sharpe** in this window. The agent held part of the portfolio in cash during a mildly rising market, giving up upside for lower risk.
 - Sharpe ratios are negative for most strategies because a 6% annual risk-free rate is a high bar over a six-week window with small absolute returns.
 
-**Reproducibility check.** `evaluate.py` reruns the whole evaluation from the saved model (`results/reproduced_comparison.csv`):
-- Buy-and-hold matches exactly (+1.10%), and PPO is close (+0.11%).
-- ARIMA (−1.86%) and LSTM (−0.31%) differ from the submitted run, because the LSTM retrains with fresh random initialisation and small differences in the trading rule compound over 30 days.
-- The ranking stays the same: buy-and-hold > PPO > LSTM > ARIMA.
+### Robustness checks
+`evaluate.py` reruns the whole evaluation end-to-end (`results/reproduced_comparison.csv`):
+
+| Check | RL cum. return | Ann. volatility | Sharpe | Max drawdown |
+|---|---|---|---|---|
+| Submitted model, rerun | +0.11% | 4.7% | −1.05 | −0.96% |
+| Submitted model, **features scaled with training-period statistics only** (no look-ahead) | +0.13% | 4.6% | −1.03 | −0.96% |
+| **Retrained from scratch** (`train_rl_agent.py --seed 0`, 200k steps) | **+0.47%** | 4.6% | −0.39 | −0.94% |
+
+- **Look-ahead is not driving the result.** The original environment z-scored test features using test-window statistics. Fixing it (`norm_stats`) changes the return by only 0.02 percentage points.
+- **The behaviour reproduces.** A freshly trained agent lands on the same low-risk policy: about half the volatility and drawdown of buy-and-hold, with a positive return.
+- In the rerun, buy-and-hold matches exactly (+1.10%). ARIMA (−1.86%) and LSTM (−0.31%) differ from the submitted run, because the LSTM retrains with fresh random initialisation. The ranking holds: buy-and-hold > RL > LSTM > ARIMA.
 
 ## Limitations and next steps
 
 - **A 30-day test window is short.** The differences are not statistically significant. Next step: walk-forward evaluation over many rolling windows.
-- **Feature scaling inside the environment uses statistics of the evaluation period itself**, a mild form of look-ahead. Scaling should use training-period statistics only.
 - Single train/test split and no hyperparameter search for PPO or λ. Long-only, with no shorting or position limits.
 - Next steps: compare DDPG/SAC and a DQN with discrete buy/hold/sell actions, add market-regime features, and use a differential-Sharpe reward.
 
@@ -58,10 +65,10 @@ pip install -r requirements.txt
 python run_demo.py                     # 1-minute smoke test on synthetic data (no download)
 python data_collection.py              # download data -> data/nifty100_features.parquet
 python train_rl_agent.py               # train PPO -> models/ppo_trader.zip
-python evaluate.py                     # RL vs ARIMA vs LSTM vs buy & hold -> results/
+python evaluate.py --extra-models models/ppo_retrained_seed0.zip   # RL vs ARIMA vs LSTM vs buy & hold -> results/
 ```
 
-The trained model is included in `models/ppo_trader.zip`. Market data is not redistributed. Regenerate it with `data_collection.py`.
+Trained models are included: `models/ppo_trader.zip` (the submitted model) and `models/ppo_retrained_seed0.zip` (the retraining check). Market data is not redistributed. Regenerate it with `data_collection.py`.
 
 ## Files
 

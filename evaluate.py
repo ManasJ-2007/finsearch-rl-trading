@@ -25,11 +25,13 @@ from trading_env import PortfolioTradingEnv
 INITIAL_CASH = 1_000_000.0
 
 
-def rl_values(model, train_df, test_df, tickers, window=20):
+def rl_values(model, train_df, test_df, tickers, window=20, train_norm=False):
     # warm-up: the env starts at index `window`, so prepend exactly `window` training dates
     warm_dates = np.sort(train_df["date"].unique())[-window:]
     env_df = pd.concat([train_df[train_df["date"].isin(warm_dates)], test_df])
-    env = PortfolioTradingEnv(env_df, tickers, initial_cash=INITIAL_CASH, window=window)
+    # train_norm=True scales test features with training-period statistics (no look-ahead)
+    stats = PortfolioTradingEnv(train_df, tickers, window=window).norm_stats if train_norm else None
+    env = PortfolioTradingEnv(env_df, tickers, initial_cash=INITIAL_CASH, window=window, norm_stats=stats)
     obs, _ = env.reset()
     values, done = [env.portfolio_value_history[0]], False
     while not done:
@@ -59,6 +61,7 @@ def main():
     ap.add_argument("--train-end", default="2026-06-15")
     ap.add_argument("--out", default="results/reproduced")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--extra-models", nargs="*", default=[], help="more PPO checkpoints to evaluate alongside")
     args = ap.parse_args()
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -72,7 +75,11 @@ def main():
           f"| test {test_df['date'].min().date()}..{test_df['date'].max().date()} ({test_df['date'].nunique()} days)")
 
     model = PPO.load(args.model, device="cpu")
-    series = {"RL (PPO)": rl_values(model, train_df, test_df, tickers)}
+    series = {"RL (PPO)": rl_values(model, train_df, test_df, tickers),
+              "RL (PPO, train-stat scaling)": rl_values(model, train_df, test_df, tickers, train_norm=True)}
+    for path in args.extra_models:
+        name = os.path.splitext(os.path.basename(path))[0]
+        series[f"RL ({name})"] = rl_values(PPO.load(path, device="cpu"), train_df, test_df, tickers, train_norm=True)
 
     print("ARIMA: fitting rolling one-step forecasts ...")
     series["ARIMA"] = signal_values(arima_signals(train_df, test_df, tickers), test_df)

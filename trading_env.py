@@ -45,6 +45,7 @@ class PortfolioTradingEnv(gym.Env):
         transaction_cost: float = 0.001,
         risk_lambda: float = 0.1,
         window: int = 20,
+        norm_stats: tuple | None = None,
     ):
         super().__init__()
         self.tickers = tickers
@@ -63,9 +64,14 @@ class PortfolioTradingEnv(gym.Env):
             [pv[col][tickers].to_numpy(dtype=np.float32) for col in FEATURE_COLS], axis=-1
         )  # shape (T, n_assets, n_features)
 
-        # Normalize features cross-sectionally to keep the network well-conditioned.
-        mu = self.features.mean(axis=(0, 1), keepdims=True)
-        sigma = self.features.std(axis=(0, 1), keepdims=True) + 1e-8
+        # Normalize features to keep the network well-conditioned. By default the stats come from
+        # this env's own data; at test time pass the *training* stats (norm_stats) to avoid look-ahead.
+        if norm_stats is None:
+            mu = self.features.mean(axis=(0, 1), keepdims=True)
+            sigma = self.features.std(axis=(0, 1), keepdims=True) + 1e-8
+        else:
+            mu, sigma = norm_stats
+        self.norm_stats = (mu, sigma)
         self.features = (self.features - mu) / sigma
 
         self.n_features = self.features.shape[-1]
