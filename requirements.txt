@@ -1,0 +1,10 @@
+yfinance>=0.2.40
+pandas>=2.0
+pyarrow>=14
+numpy>=1.26
+gymnasium>=0.29
+stable-baselines3>=2.3
+torch>=2.2
+statsmodels>=0.14
+scikit-learn>=1.4
+matplotlib>=3.8

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+tb_logs/
+events.out.tfevents.*
+.vscode/
+# market data is regenerated with data_collection.py (Yahoo Finance terms don't allow redistribution)
+data/
